@@ -13,6 +13,7 @@ import json
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import auth
+import re
 
 from .models import Link
 
@@ -83,30 +84,27 @@ def createLink(request):
             customUrl = data['customUrl']
             # clean customUrl
             customUrl = customUrl.replace(" ", "")
+            customUrl = customUrl.replace("/", "")
             customUrl = customUrl.lower()
-            # remove double slashes
-            while customUrl.find("//") != -1:
-                customUrl = customUrl.replace("//", "/")
-            # remove starting and ending slashes
-            if customUrl.startswith("/"):
-                customUrl = customUrl[1:]
-            if customUrl.endswith("/"):
-                customUrl = customUrl[:-1]
+            customUrl = re.sub('[\W\_]', '', customUrl)
+            # if customUrl is empty
+            if not customUrl:
+                return JsonResponse({"data": "customUrl is empty after removing all special characters"})
 
             link = Link.objects.filter(user_id=decoded_token['user_id'], customUrl=customUrl).first()
             if link:
-                return JsonResponse({"data": "Link already exists"})
+                return JsonResponse({"data": "Link already exists after removing all special characters"})
             else:
                 link = Link.objects.create(user_id=decoded_token['user_id'], customUrl=customUrl, response=data['response'])
                 if not link:
                     return JsonResponse({"data": "Error creating link"})
 
-                return JsonResponse({"data": "Link created"})
+                return JsonResponse({"data": "Link created after removing all special characters"})
         else:
             return JsonResponse({"data": "Invalid Token"})
         return JsonResponse({"data": "Link Created"})
     except Exception as e:
-        return JsonResponse({"data": str(e)})
+        return JsonResponse({"data": "Exception: " + str(e)})
 
 
 @csrf_exempt
