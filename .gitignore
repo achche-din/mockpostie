@@ -255,5 +255,3 @@ cython_debug/
 .idea/
 
 static/*
-
-/mockpostie/firebase_config.json
