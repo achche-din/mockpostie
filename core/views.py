@@ -21,44 +21,6 @@ firebase_creds = credentials.Certificate(settings.FIREBASE_CONFIG)
 firebase_app = firebase_admin.initialize_app(firebase_creds)
 
 
-def iter_response(response, chunk_size=65536):
-    try:
-        while True:
-            data = response.read(chunk_size)
-            if not data:
-                break
-            yield data
-    finally:
-        response.close()
-
-def catchall_dev(request, upstream='http://localhost:3000'):
-    upstream_url = upstream + request.path
-    response = urllib.request.urlopen(upstream_url)
-    content_type = response.getheader('Content-Type')
-    print('content type: ', content_type, '\n')
-
-    if content_type == 'text/html; charset=utf-8':
-        response_text = response.read().decode()
-        response.close()
-        return HttpResponse(
-            engines['django'].from_string(response_text).render(),
-            content_type=content_type,
-            status=response.status,
-            reason=response.reason,
-        )
-    else:
-        return StreamingHttpResponse(
-            iter_response(response),
-            content_type=content_type,
-            status=response.status,
-            reason=response.reason,
-        )
-
-catchall_prod = TemplateView.as_view(template_name='index.html')
-# catchall = catchall_dev if settings.DEBUG else catchall_prod
-catchall = catchall_prod
-
-
 def index(request):
     if request.method != "GET":
         return JsonResponse({"data":"Method not allowed"})
@@ -68,16 +30,16 @@ def index(request):
     
     try:
         token = request.headers['Authorization']
-        decoded_token = auth.verify_id_token(token)
+        decoded_token = auth.verify_id_token(token.split(' ')[1])
 
         if decoded_token and decoded_token['user_id']:
             links = Link.objects.filter(user_id=decoded_token['user_id'])
             json_data = list(links.values())
-
             return JsonResponse(json_data, safe = False)
         else:
             return JsonResponse({"data": "Invalid Token"})
     except Exception as e:
+        print("exception", str(e))
         return JsonResponse({"data": str(e)})
 
 
