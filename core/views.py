@@ -21,9 +21,9 @@ firebase_creds = credentials.Certificate(settings.FIREBASE_CONFIG)
 firebase_app = firebase_admin.initialize_app(firebase_creds)
 
 
-def return_decoded_token(Auth):
+def return_decoded_token(AuthToken):
     try:
-        decoded_token = auth.verify_id_token(Auth.split(' ')[1])
+        decoded_token = auth.verify_id_token(AuthToken.split(' ')[1])
         return decoded_token
     except Exception as e:
         return {"data": str(e)}
@@ -38,16 +38,15 @@ def index(request):
     try:
         token = request.headers['Authorization']
         decoded_token = return_decoded_token(token)
-
+        
         if decoded_token and decoded_token['user_id']:
-            links = Link.objects.filter(user_id=decoded_token['user_id'])
+            links = Link.objects.filter(user_id=decoded_token['user_id']).order_by('-id')
             json_data = list(links.values())
             return JsonResponse(json_data, safe = False)
         else:
             return JsonResponse({"data": "Invalid Token"})
     except Exception as e:
-        print("exception", str(e))
-        return JsonResponse({"data": str(e)})
+        return JsonResponse({"data": "Exception: " + str(e)})
 
 
 def customLink(request, user_id, customUrl):
@@ -81,11 +80,28 @@ def createLink(request):
         decoded_token = return_decoded_token(token)
 
         if decoded_token and decoded_token['user_id']:
-            link = Link(customUrl=data['customUrl'], response=data['response'], user_id=decoded_token['user_id'])
-            if not link:
-                return JsonResponse({"data": "Error creating link"})
-            
-            link.save()
+            customUrl = data['customUrl']
+            # clean customUrl
+            customUrl = customUrl.replace(" ", "")
+            customUrl = customUrl.lower()
+            # remove double slashes
+            while customUrl.find("//") != -1:
+                customUrl = customUrl.replace("//", "/")
+            # remove starting and ending slashes
+            if customUrl.startswith("/"):
+                customUrl = customUrl[1:]
+            if customUrl.endswith("/"):
+                customUrl = customUrl[:-1]
+
+            link = Link.objects.filter(user_id=decoded_token['user_id'], customUrl=customUrl).first()
+            if link:
+                return JsonResponse({"data": "Link already exists"})
+            else:
+                link = Link.objects.create(user_id=decoded_token['user_id'], customUrl=customUrl, response=data['response'])
+                if not link:
+                    return JsonResponse({"data": "Error creating link"})
+
+                return JsonResponse({"data": "Link created"})
         else:
             return JsonResponse({"data": "Invalid Token"})
         return JsonResponse({"data": "Link Created"})
