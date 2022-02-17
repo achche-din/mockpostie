@@ -21,6 +21,13 @@ firebase_creds = credentials.Certificate(settings.FIREBASE_CONFIG)
 firebase_app = firebase_admin.initialize_app(firebase_creds)
 
 
+def return_decoded_token(Auth):
+    try:
+        decoded_token = auth.verify_id_token(Auth.split(' ')[1])
+        return decoded_token
+    except Exception as e:
+        return {"data": str(e)}
+
 def index(request):
     if request.method != "GET":
         return JsonResponse({"data":"Method not allowed"})
@@ -30,7 +37,7 @@ def index(request):
     
     try:
         token = request.headers['Authorization']
-        decoded_token = auth.verify_id_token(token.split(' ')[1])
+        decoded_token = return_decoded_token(token)
 
         if decoded_token and decoded_token['user_id']:
             links = Link.objects.filter(user_id=decoded_token['user_id'])
@@ -71,7 +78,7 @@ def createLink(request):
     try:
         data = json.loads(request.body.decode('utf-8'))
         token = request.headers['Authorization']
-        decoded_token = auth.verify_id_token(token)
+        decoded_token = return_decoded_token(token)
 
         if decoded_token and decoded_token['user_id']:
             link = Link(customUrl=data['customUrl'], response=data['response'], user_id=decoded_token['user_id'])
@@ -97,7 +104,7 @@ def editLink(request):
     try:
         data = json.loads(request.body.decode('utf-8'))
         token = request.headers['Authorization']
-        decoded_token = auth.verify_id_token(token)
+        decoded_token = return_decoded_token(token)
 
         if decoded_token and decoded_token['user_id']:
             link = Link.objects.filter(customUrl=data['customUrl'], user_id=decoded_token['user_id'])
@@ -123,7 +130,7 @@ def deleteLink(request):
     try:
         data = json.loads(request.body.decode('utf-8'))
         token = request.headers['Authorization']
-        decoded_token = auth.verify_id_token(token)
+        decoded_token = return_decoded_token(token)
 
         if decoded_token and decoded_token['user_id']:
             link = Link.objects.filter(customUrl=data['customUrl'], user_id=decoded_token['user_id']).first()
