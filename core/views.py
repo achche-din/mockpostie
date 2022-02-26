@@ -27,14 +27,14 @@ def return_decoded_token(AuthToken):
         decoded_token = auth.verify_id_token(AuthToken.split(' ')[1])
         return decoded_token
     except Exception as e:
-        return {"data": str(e)}
+        return JsonResponse({"data": str(e), 'status':'false'}, status=400)
 
 def index(request):
     if request.method != "GET":
-        return JsonResponse({"data":"Method not allowed"})
+        return JsonResponse({"data":"Method not allowed", 'status':'false'}, status=405)
         
     if 'Authorization' not in request.headers:
-        return JsonResponse({"data": "Authorization header is missing"})
+        return JsonResponse({"data": "Authorization header is missing", 'status':'false'}, status=403)
     
     try:
         token = request.headers['Authorization']
@@ -45,35 +45,38 @@ def index(request):
             json_data = list(links.values())
             return JsonResponse(json_data, safe = False)
         else:
-            return JsonResponse({"data": "Invalid Token"})
+            return JsonResponse({"data": "Invalid Token", 'status':'false'}, status=401)
     except Exception as e:
-        return JsonResponse({"data": "Exception: " + str(e)})
+        return JsonResponse({"data": "Exception: " + str(e), 'status':'false'}, status=400)
 
 
-def customLink(request, user_id, customUrl):
+def customLink(request, user_id, custom_url):
+    print('custom_url: ', custom_url)
+
     if request.method != "GET":
-        return JsonResponse({"data":"Method not allowed"})
+        return JsonResponse({"data":"Method not allowed", 'status':'false'}, status=405)
     try:
-        if user_id and customUrl:
-            link = Link.objects.filter(customUrl=customUrl, user_id=user_id).first()
+        if user_id and custom_url:
+            print('customUrl: ' + custom_url)
+            link = Link.objects.filter(customUrl=custom_url, user_id=user_id).first()
             if not link:
-                return JsonResponse({"data": "Link does not exist"})
+                return JsonResponse({"data": "Link does not exist", 'status':'false'}, status=404)
             response = link.response
             return JsonResponse({"data": response})
         else:
-            return JsonResponse({"data": "user_id or customUrl is missing"})
+            return JsonResponse({"data": "user_id or custom_url is missing", 'status':'false'}, status=400)
         
     except Exception as e:
-        return JsonResponse({"data": str(e)})
+        return JsonResponse({"data": str(e), 'status':'false'}, status=400)
 
 
 @csrf_exempt
 def createLink(request):
     if request.method != "POST":
-        return JsonResponse({"data":"Method not allowed"})
+        return JsonResponse({"data":"Method not allowed", 'status':'false'}, status=405)
         
     if 'Authorization' not in request.headers:
-        return JsonResponse({"data": "Authorization header is missing"})
+        return JsonResponse({"data": "Authorization header is missing", 'status':'false'}, status=403)
     
     try:
         data = json.loads(request.body.decode('utf-8'))
@@ -83,37 +86,41 @@ def createLink(request):
         if decoded_token and decoded_token['user_id']:
             customUrl = data['customUrl']
             # clean customUrl
-            customUrl = customUrl.replace(" ", "")
-            customUrl = customUrl.replace("/", "")
-            customUrl = customUrl.lower()
-            customUrl = re.sub('[\W\_]', '', customUrl)
+            customUrl = customUrl.replace(" ", "").lower()
+            # remove trailing and ending slashes
+            customUrl = re.sub(r'^/+|/+$', '', customUrl)
+            # remove invalid characters
+            customUrl = re.sub(r'[^a-zA-Z0-9-_/]', '', customUrl)
+            # remove duplicate slashes
+            customUrl = re.sub(r'/+', '/', customUrl)
+
             # if customUrl is empty
             if not customUrl:
-                return JsonResponse({"data": "customUrl is empty after removing all special characters"})
+                return JsonResponse({"data": "customUrl is empty after removing all special characters", 'status':'false'}, status=400)
 
             link = Link.objects.filter(user_id=decoded_token['user_id'], customUrl=customUrl).first()
             if link:
-                return JsonResponse({"data": "Link already exists after removing all special characters"})
+                return JsonResponse({"data": f"Link {customUrl} already exists after removing all special characters", 'status':'false'}, status=400)
             else:
                 link = Link.objects.create(user_id=decoded_token['user_id'], customUrl=customUrl, response=data['response'])
                 if not link:
-                    return JsonResponse({"data": "Error creating link"})
+                    return JsonResponse({"data": "Error creating link", 'status':'false'}, status=400)
 
-                return JsonResponse({"data": "Link created after removing all special characters"})
+                return JsonResponse({"data": f"Link {customUrl} created after removing all special characters"})
         else:
-            return JsonResponse({"data": "Invalid Token"})
-        return JsonResponse({"data": "Link Created"})
+            return JsonResponse({"data": "Invalid Token", 'status':'false'}, status=401)
+        return JsonResponse({"data": "Link Created", 'status':'false'})
     except Exception as e:
-        return JsonResponse({"data": "Exception: " + str(e)})
+        return JsonResponse({"data": "Exception: " + str(e), 'status':'false'}, status=400)
 
 
 @csrf_exempt
 def editLink(request):
     if request.method != "POST":
-        return JsonResponse({"data":"Method not allowed"})
+        return JsonResponse({"data":"Method not allowed", 'status':'false'}, status=405)
         
     if 'Authorization' not in request.headers:
-        return JsonResponse({"data": "Authorization header is missing"})
+        return JsonResponse({"data": "Authorization header is missing", 'status':'false'}, status=401)
 
     try:
         data = json.loads(request.body.decode('utf-8'))
@@ -123,23 +130,23 @@ def editLink(request):
         if decoded_token and decoded_token['user_id']:
             link = Link.objects.filter(customUrl=data['customUrl'], user_id=decoded_token['user_id'])
             if not link:
-                return JsonResponse({"data": "Link does not exist"})
+                return JsonResponse({"data": "Link does not exist", 'status':'false'}, status=404)
             
             link.update(response=data['response'])
             return JsonResponse({"data": "Link updated"})
         else:
-            return JsonResponse({"data": "Invalid Token"})
+            return JsonResponse({"data": "Invalid Token", 'status':'false'}, status=401)
     except Exception as e:
-        return JsonResponse({"data": str(e)})
+        return JsonResponse({"data": str(e), 'status':'false'}, status=400)
 
 
 @csrf_exempt
 def deleteLink(request):
     if request.method != "POST":
-        return JsonResponse({"data":"Method not allowed"})
+        return JsonResponse({"data":"Method not allowed", 'status':'false'}, status=405)
         
     if 'Authorization' not in request.headers:
-        return JsonResponse({"data": "Authorization header is missing"})
+        return JsonResponse({"data": "Authorization header is missing", 'status':'false'}, status=401)
     
     try:
         data = json.loads(request.body.decode('utf-8'))
@@ -149,11 +156,11 @@ def deleteLink(request):
         if decoded_token and decoded_token['user_id']:
             link = Link.objects.filter(customUrl=data['customUrl'], user_id=decoded_token['user_id']).first()
             if not link:
-                return JsonResponse({"data": "Link does not exist"})
+                return JsonResponse({"data": "Link does not exist", 'status':'false'}, status=404)
             
             link.delete()    
             return JsonResponse({"data": "Link deleted"})
         else:
-            return JsonResponse({"data": "Invalid Token"})
+            return JsonResponse({"data": "Invalid Token", 'status':'false'}, status=401)
     except Exception as e:
-        return JsonResponse({"data": str(e)})
+        return JsonResponse({"data": str(e), 'status':'false'}, status=400)
