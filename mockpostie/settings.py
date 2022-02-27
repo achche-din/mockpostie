@@ -45,10 +45,12 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'whitenoise.runserver_nostatic',
-    'core'
+    'core',
+    'embargoed'
 ]
 
 MIDDLEWARE = [
+    'embargoed.middleware.EmbargoedMiddlewareTemplate',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
